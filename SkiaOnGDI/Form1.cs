@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace SkiaOnGDI
@@ -14,6 +15,7 @@ namespace SkiaOnGDI
         FPSCounter counter;
         SKBitmap buffer;
         SKCanvas bufferContext;
+        Bitmap bmp;
 
         // resources
         Random r = new Random();
@@ -21,46 +23,38 @@ namespace SkiaOnGDI
         Queue<Ball> lazyAddBalls = new Queue<Ball>();
         Queue<Ball> lazyRemoveBalls = new Queue<Ball>();
 
+        IntPtr mHandle;
+
         public Form1()
         {
             //OpenTK.Toolkit.Init();
             InitializeComponent();
 
+            mHandle = this.Handle;
+
             var screen = Screen.PrimaryScreen;
-            buffer = new SKBitmap(screen.WorkingArea.Width, screen.WorkingArea.Height);
-            bufferContext = new SKCanvas(buffer);
 
-            this.Width = buffer.Width;
-            this.Height = buffer.Height;
-
+            this.Width = screen.WorkingArea.Width;
+            this.Height = screen.WorkingArea.Height;
             this.Location = Point.Empty;
 
             counter = new FPSCounter();
 
-            var t = new System.Windows.Forms.Timer()
+            Task.Factory.StartNew(() =>
             {
-                Interval = 1
-            };
+                buffer = new SKBitmap(screen.WorkingArea.Width, screen.WorkingArea.Height);
+                bufferContext = new SKCanvas(buffer);
+                bmp = new Bitmap(buffer.Width, buffer.Height);
 
-            t.Tick += (s, e) =>
-            {
-                PipeLine();
-            };
+                CreateBalls();
 
-            t.Start();
-            //var renderer = new Thread(() =>
-            //{
-            //    while (true)
-            //    {
-            //        this.BeginInvoke(new Action(() =>
-            //        {
-            //            Render();
-            //        }));
-            //    }
-            //});
+                while (true)
+                {
+                    PipeLine();
+                }
+            });
 
-            //renderer.IsBackground = true;
-            //renderer.Start();
+            return;
         }
 
         protected override CreateParams CreateParams
@@ -76,11 +70,11 @@ namespace SkiaOnGDI
 
         void CreateBalls()
         {
-            for (int i = 0; i < 256; i++)
+            for (int i = 0; i < 128; i++)
                 lazyAddBalls.Enqueue(new Ball()
                 {
                     X = this.Width / 2,
-                    Y = this.Height /2,
+                    Y = this.Height / 2,
                     SpeedX = r.Next(12) + 1,
                     SpeedY = r.Next(12) + 1,
                     Radius = r.Next(2, 30),
@@ -101,80 +95,66 @@ namespace SkiaOnGDI
         }
 
         //Updates the Form's display using API calls
-        public void UpdateFormDisplay(Image backgroundImage)
+        public void UpdateFormDisplay(Bitmap bmp)
         {
             IntPtr screenDc = Win32.GetDC(IntPtr.Zero);
             IntPtr memDc = Win32.CreateCompatibleDC(screenDc);
             IntPtr hBitmap = IntPtr.Zero;
             IntPtr oldBitmap = IntPtr.Zero;
 
-            try
+            //Display-image
+            hBitmap = bmp.GetHbitmap(Color.FromArgb(0));  //Set the fact that background is transparent
+            oldBitmap = Win32.SelectObject(memDc, hBitmap);
+
+            //Display-rectangle
+            Size size = bmp.Size;
+            Point pointSource = new Point(0, 0);
+            Point topPos = Point.Empty;
+
+            //Set up blending options
+            Win32.BLENDFUNCTION blend = new Win32.BLENDFUNCTION();
+            blend.BlendOp = Win32.AC_SRC_OVER;
+            blend.BlendFlags = 0;
+            blend.SourceConstantAlpha = 255;
+            blend.AlphaFormat = Win32.AC_SRC_ALPHA;
+
+            Win32.UpdateLayeredWindow(mHandle, screenDc, ref topPos, ref size, memDc, ref pointSource, 0, ref blend, Win32.ULW_ALPHA);
+
+            //Clean-up
+            //bmp.Dispose();
+            Win32.ReleaseDC(IntPtr.Zero, screenDc);
+            if (hBitmap != IntPtr.Zero)
             {
-                //Display-image
-                Bitmap bmp = new Bitmap(backgroundImage);
-                hBitmap = bmp.GetHbitmap(Color.FromArgb(0));  //Set the fact that background is transparent
-                oldBitmap = Win32.SelectObject(memDc, hBitmap);
-
-                //Display-rectangle
-                Size size = bmp.Size;
-                Point pointSource = new Point(0, 0);
-                Point topPos = new Point(this.Left, this.Top);
-
-                //Set up blending options
-                Win32.BLENDFUNCTION blend = new Win32.BLENDFUNCTION();
-                blend.BlendOp = Win32.AC_SRC_OVER;
-                blend.BlendFlags = 0;
-                blend.SourceConstantAlpha = 255;
-                blend.AlphaFormat = Win32.AC_SRC_ALPHA;
-
-                Win32.UpdateLayeredWindow(this.Handle, screenDc, ref topPos, ref size, memDc, ref pointSource, 0, ref blend, Win32.ULW_ALPHA);
-
-                //Clean-up
-                bmp.Dispose();
-                Win32.ReleaseDC(IntPtr.Zero, screenDc);
-                if (hBitmap != IntPtr.Zero)
-                {
-                    Win32.SelectObject(memDc, oldBitmap);
-                    Win32.DeleteObject(hBitmap);
-                }
-                Win32.DeleteDC(memDc);
+                Win32.SelectObject(memDc, oldBitmap);
+                Win32.DeleteObject(hBitmap);
             }
-            catch (Exception)
-            {
-            }
+            Win32.DeleteDC(memDc);
         }
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            CreateBalls();
-            PipeLine();
         }
 
         private void PipeLine()
         {
             Render(bufferContext);
-            
-            byte[] bytes = buffer.Bytes;
 
-            var bmp = new Bitmap(buffer.Width, buffer.Height);
             var bmpLock = bmp.LockBits(
                 new Rectangle(0, 0, bmp.Width, bmp.Height),
                 ImageLockMode.WriteOnly,
                 PixelFormat.Format32bppArgb);
 
-            Marshal.Copy(bytes, 0, bmpLock.Scan0, bytes.Length);
+            buffer.CopyPixelsTo(bmpLock.Scan0, buffer.ByteCount);
 
             bmp.UnlockBits(bmpLock);
 
             UpdateFormDisplay(bmp);
-            
-            bmp.Dispose();
         }
 
         private void Render(SKCanvas c)
         {
             c.Clear();
-            this.Location = Point.Empty;
+
 
             while (lazyAddBalls.Count > 0)
                 balls.Add(lazyAddBalls.Dequeue());
@@ -217,8 +197,6 @@ namespace SkiaOnGDI
                 TextSize = 20
             })
             {
-
-                c.DrawText($"한글이지롱rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrㅁ나어리ㅏㅁㄴ어리먼이러민어리먼이ㅏㅓ미ㅓㅇ닐머니아ㅓ리ㅏㅁ넝리ㅏ머ㅣㅇ나ㅓㄹ미ㅏ넝리ㅏ멍ㄴ", (int)(Width - 10), 20, paint);
                 c.DrawText($"FPS: {counter.FPS}",
                     (int)(Width - 10),
                     (int)(Height - 10),
