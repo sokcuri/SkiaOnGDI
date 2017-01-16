@@ -177,7 +177,7 @@ namespace SkiaOnGDI
                 ball.Y = Math.Min(Math.Max(ball.Y, ball.Radius), Height - ball.Radius);
 
                 //ball.Opacity -= 0.05f;
-                ball.Opacity = 0.5f;
+                //ball.Opacity = 0.5f;
                 ball.Opacity = Math.Max(ball.Opacity, 0);
                 ball.Paint.Color = ball.Paint.Color.WithAlpha((byte)(255 * ball.Opacity));
 
