@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -34,15 +35,15 @@ namespace SkiaOnGDI
 
             var screen = Screen.PrimaryScreen;
 
-            this.Width = screen.WorkingArea.Width;
-            this.Height = screen.WorkingArea.Height;
+            this.Width = screen.WorkingArea.Width / 2;
+            this.Height = screen.WorkingArea.Height / 2;
             this.Location = Point.Empty;
 
             counter = new FPSCounter();
 
             Task.Factory.StartNew(() =>
             {
-                buffer = new SKBitmap(screen.WorkingArea.Width, screen.WorkingArea.Height);
+                buffer = new SKBitmap(screen.WorkingArea.Width / 2, screen.WorkingArea.Height / 2);
                 bufferContext = new SKCanvas(buffer);
                 bmp = new Bitmap(buffer.Width, buffer.Height);
 
@@ -103,9 +104,33 @@ namespace SkiaOnGDI
             IntPtr oldBitmap = IntPtr.Zero;
 
             //Display-image
-            hBitmap = bmp.GetHbitmap(Color.FromArgb(0));  //Set the fact that background is transparent
-            oldBitmap = Win32.SelectObject(memDc, hBitmap);
+            //hBitmap = bmp.GetHbitmap(Color.FromArgb(0));  //Set the fact that background is transparent
 
+            //var bih = new Win32.BITMAPINFOHEADER();
+            //bih.biSize = (uint)Marshal.SizeOf(bih);
+            //bih.biWidth = bmp.Width;
+            //bih.biHeight = bmp.Height;
+            //bih.biPlanes = 1;
+            //bih.biBitCount = 32;
+            //bih.biCompression = Win32.BitmapCompressionMode.BI_RGB;
+            //bih.biSizeImage = 0;
+            //bih.biXPelsPerMeter = 0;
+            //bih.biYPelsPerMeter = 0;
+            //bih.biClrUsed = 0;
+            //bih.biClrImportant = 0;
+
+            //var bi = new Win32.BITMAPINFO();
+            //IntPtr scan0;
+            //hBitmap = Win32.CreateDIBSection(memDc, ref bi, 0, out scan0, IntPtr.Zero, 0);
+
+            var fi = typeof(Bitmap).GetField("nativeImage", BindingFlags.Instance | BindingFlags.GetField | BindingFlags.NonPublic);
+            IntPtr nativeImage = (IntPtr)fi.GetValue(bmp);
+
+            int status = Win32.GdipCreateHBITMAPFromBitmap(new HandleRef(this, nativeImage), out hBitmap,
+                                                             ColorTranslator.ToWin32(Color.FromArgb(0)));
+
+            oldBitmap = Win32.SelectObject(memDc, hBitmap);
+            
             //Display-rectangle
             Size size = bmp.Size;
             Point pointSource = new Point(0, 0);
@@ -119,7 +144,7 @@ namespace SkiaOnGDI
             blend.AlphaFormat = Win32.AC_SRC_ALPHA;
 
             Win32.UpdateLayeredWindow(mHandle, screenDc, ref topPos, ref size, memDc, ref pointSource, 0, ref blend, Win32.ULW_ALPHA);
-
+            
             //Clean-up
             //bmp.Dispose();
             Win32.ReleaseDC(IntPtr.Zero, screenDc);
@@ -197,6 +222,7 @@ namespace SkiaOnGDI
                 TextSize = 20
             })
             {
+                Console.WriteLine(counter.FPS);
                 c.DrawText($"FPS: {counter.FPS}",
                     (int)(Width - 10),
                     (int)(Height - 10),

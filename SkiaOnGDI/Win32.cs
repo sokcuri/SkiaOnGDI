@@ -19,6 +19,67 @@ namespace SkiaOnGDI
             public byte AlphaFormat;
         }
 
+        [StructLayoutAttribute(LayoutKind.Sequential)]
+        public struct BITMAPINFO
+        {
+            /// <summary>
+            /// A BITMAPINFOHEADER structure that contains information about the dimensions of color format.
+            /// </summary>
+            public BITMAPINFOHEADER bmiHeader;
+
+            /// <summary>
+            /// An array of RGBQUAD. The elements of the array that make up the color table.
+            /// </summary>
+            [MarshalAsAttribute(UnmanagedType.ByValArray, SizeConst = 1, ArraySubType = UnmanagedType.Struct)]
+            public RGBQUAD[] bmiColors;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct RGBQUAD
+        {
+            public byte rgbBlue;
+            public byte rgbGreen;
+            public byte rgbRed;
+            public byte rgbReserved;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct BITMAPINFOHEADER
+        {
+            public uint biSize;
+            public int biWidth;
+            public int biHeight;
+            public ushort biPlanes;
+            public ushort biBitCount;
+            public BitmapCompressionMode biCompression;
+            public uint biSizeImage;
+            public int biXPelsPerMeter;
+            public int biYPelsPerMeter;
+            public uint biClrUsed;
+            public uint biClrImportant;
+
+            public void Init()
+            {
+                biSize = (uint)Marshal.SizeOf(this);
+            }
+        }
+
+        public enum BitmapCompressionMode : uint
+        {
+            BI_RGB = 0,
+            BI_RLE8 = 1,
+            BI_RLE4 = 2,
+            BI_BITFIELDS = 3,
+            BI_JPEG = 4,
+            BI_PNG = 5
+        }
+
+        [DllImport("gdiplus.dll", SetLastError = true, ExactSpelling = true, CharSet = System.Runtime.InteropServices.CharSet.Unicode)] // 3 = Unicode
+        internal static extern int GdipCreateHBITMAPFromBitmap(HandleRef nativeBitmap, out IntPtr hbitmap, int argbBackground);
+
+        [DllImport("gdi32.dll")]
+        public static extern IntPtr CreateDIBSection(IntPtr hdc, [In] ref BITMAPINFO pbmi, uint pila, out IntPtr ppvBits, IntPtr hSection, uint dwOffset);
+
         [DllImport("user32.dll", ExactSpelling = true, SetLastError = true)]
         public static extern bool UpdateLayeredWindow(IntPtr hwnd, IntPtr hdcDst, ref Point pptDst, ref Size psize, IntPtr hdcSrc, ref Point pprSrc, Int32 crKey, ref BLENDFUNCTION pblend, Int32 dwFlags);
 
