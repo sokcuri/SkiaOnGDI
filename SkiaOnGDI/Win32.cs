@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 
 namespace SkiaOnGDI
@@ -74,6 +75,51 @@ namespace SkiaOnGDI
             BI_PNG = 5
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        public struct GPRECT
+        {
+            internal int X;
+            internal int Y;
+            internal int Width;
+            internal int Height;
+
+            internal GPRECT(int x, int y, int width, int height)
+            {
+                X = x;
+                Y = y;
+                Width = width;
+                Height = height;
+            }
+
+            internal GPRECT(Rectangle rect)
+            {
+                X = rect.X;
+                Y = rect.Y;
+                Width = rect.Width;
+                Height = rect.Height;
+            }
+
+            internal Rectangle ToRectangle()
+            {
+                return new Rectangle(X, Y, Width, Height);
+            }
+        }
+
+        [DllImport("gdiplus.dll", SetLastError = true, ExactSpelling = true, CharSet = CharSet.Unicode)] // 3 = Unicod
+        public static extern int GdipBitmapLockBits(HandleRef bitmap,
+                                                          ref GPRECT rect,
+                                                          ImageLockMode flags,
+                                                          PixelFormat format,
+                                                          [In, Out] BitmapData lockedBitmapData);
+
+        [DllImport("gdiplus.dll", SetLastError = true, ExactSpelling = true, CharSet = System.Runtime.InteropServices.CharSet.Unicode)] // 3 = Unicode
+        public static extern int GdipBitmapUnlockBits(HandleRef bitmap,
+                                                 BitmapData lockedBitmapData);
+
+        [DllImport("gdi32.dll", EntryPoint = "BitBlt", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool BitBlt([In] IntPtr hdc, int nXDest, int nYDest, int nWidth, int nHeight, [In] IntPtr hdcSrc, int nXSrc, int nYSrc, TernaryRasterOperations dwRop);
+
         [DllImport("gdiplus.dll", SetLastError = true, ExactSpelling = true, CharSet = System.Runtime.InteropServices.CharSet.Unicode)] // 3 = Unicode
         internal static extern int GdipCreateHBITMAPFromBitmap(HandleRef nativeBitmap, out IntPtr hbitmap, int argbBackground);
 
@@ -103,7 +149,7 @@ namespace SkiaOnGDI
         [DllImport("gdi32.dll", ExactSpelling = true, SetLastError = true)]
         public static extern bool DeleteObject(IntPtr hObject);
 
-        enum TernaryRasterOperations : uint
+        public enum TernaryRasterOperations : uint
         {
             /// <summary>dest = source</summary>
             SRCCOPY = 0x00CC0020,
