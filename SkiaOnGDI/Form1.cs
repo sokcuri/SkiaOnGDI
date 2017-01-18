@@ -17,7 +17,6 @@ namespace SkiaOnGDI
         FPSCounter counter;
         SKBitmap buffer;
         SKCanvas bufferContext;
-        Bitmap bmp;
 
         // resources
         Random r = new Random();
@@ -29,7 +28,6 @@ namespace SkiaOnGDI
 
         public Form1()
         {
-            //OpenTK.Toolkit.Init();
             InitializeComponent();
 
             mHandle = this.Handle;
@@ -46,7 +44,7 @@ namespace SkiaOnGDI
             {
                 buffer = new SKBitmap(screen.WorkingArea.Width, screen.WorkingArea.Height);
                 bufferContext = new SKCanvas(buffer);
-                bmp = new Bitmap(buffer.Width, buffer.Height);
+
                 CreateBalls();
 
                 while (true)
@@ -97,25 +95,20 @@ namespace SkiaOnGDI
 
         IntPtr hBitmap = IntPtr.Zero;
         IntPtr scan0 = IntPtr.Zero;
-
-        //Updates the Form's display using API calls
-        public void UpdateFormDisplay(Bitmap bmp)
+        
+        public void UpdateFormDisplay()
         {
             IntPtr screenDc = Win32.GetDC(IntPtr.Zero);
             IntPtr memDc = Win32.CreateCompatibleDC(screenDc);
 
             IntPtr oldBitmap = IntPtr.Zero;
-
-            //hBitmap = bmp.GetHBitmap2(Color.FromArgb(0));
-
-            //hBitmap = bmp.GetHBitmap3(IntPtr.Zero);
-
+            
             if (hBitmap == IntPtr.Zero)
             {
                 var bih = new Win32.BITMAPINFOHEADER();
                 bih.biSize = (uint)Marshal.SizeOf<Win32.BITMAPINFOHEADER>();
-                bih.biWidth = bmp.Width;
-                bih.biHeight = bmp.Height;
+                bih.biWidth = buffer.Width;
+                bih.biHeight = buffer.Height;
                 bih.biPlanes = 1;
                 bih.biBitCount = 32;
                 bih.biCompression = Win32.BitmapCompressionMode.BI_RGB;
@@ -131,15 +124,12 @@ namespace SkiaOnGDI
             }
             buffer.CopyPixelsTo(scan0, buffer.ByteCount);
 
-            //Marshal.Copy(buffer.Bytes.Reverse().ToArray(), 0, scan0, buffer.ByteCount);
             oldBitmap = Win32.SelectObject(memDc, hBitmap);
 
-            //Display-rectangle
-            Size size = bmp.Size;
+            Size size = new Size(buffer.Width, buffer.Height);
             Point pointSource = new Point(0, 0);
             Point topPos = Point.Empty;
 
-            //Set up blending options
             Win32.BLENDFUNCTION blend = new Win32.BLENDFUNCTION();
             blend.BlendOp = Win32.AC_SRC_OVER;
             blend.BlendFlags = 0;
@@ -148,13 +138,10 @@ namespace SkiaOnGDI
 
             Win32.UpdateLayeredWindow(mHandle, screenDc, ref topPos, ref size, memDc, ref pointSource, 0, ref blend, Win32.ULW_ALPHA);
             
-            //Clean-up
-            //bmp.Dispose();
             Win32.ReleaseDC(IntPtr.Zero, screenDc);
             if (hBitmap != IntPtr.Zero)
             {
                 Win32.SelectObject(memDc, oldBitmap);
-                //Win32.DeleteObject(hBitmap);
             }
             Win32.DeleteDC(memDc);
         }
@@ -167,7 +154,7 @@ namespace SkiaOnGDI
         {
             Render(bufferContext);
 
-            UpdateFormDisplay(bmp);
+            UpdateFormDisplay();
         }
 
         private void Render(SKCanvas c)
@@ -193,9 +180,7 @@ namespace SkiaOnGDI
 
                 ball.X = Math.Min(Math.Max(ball.X, ball.Radius), Width - ball.Radius);
                 ball.Y = Math.Min(Math.Max(ball.Y, ball.Radius), Height - ball.Radius);
-
-                //ball.Opacity -= 0.05f;
-                //ball.Opacity = 0.5f;
+                
                 ball.Opacity = Math.Max(ball.Opacity, 0);
                 ball.Paint.Color = ball.Paint.Color.WithAlpha((byte)(255 * ball.Opacity));
 
