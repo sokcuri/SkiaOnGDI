@@ -193,7 +193,7 @@ namespace SkiaOnGDI
             }
 
             counter.Update();
-
+            
             using (var paint = new SKPaint()
             {
                 Color = SKColors.Red,
@@ -202,6 +202,12 @@ namespace SkiaOnGDI
                 TextSize = 20
             })
             {
+                SKPaint textpaint = new SKPaint();
+                textpaint.IsAntialias = true;
+                textpaint.TextAlign = SKTextAlign.Left;
+                textpaint.TextSize = 150;
+                SKPath path = textpaint.GetTextPath("소쿠릿은 귀여워 '-^", 300, 300);
+                StrokePath(c, path);
                 Console.WriteLine(counter.FPS);
                 c.DrawText($"FPS: {counter.FPS}",
                     (int)(Width - 10),
@@ -214,6 +220,19 @@ namespace SkiaOnGDI
                     paint);
             }
             //c.RotateDegrees(0.5f, buffer.Width / 2, buffer.Height / 2);
+
+        }
+        private void StrokePath(SKCanvas canvas, SKPath path)
+        {
+            SKPaint paint = new SKPaint();
+            paint.IsAntialias = true;
+            paint.StrokeWidth = 15;
+            paint.Color = SKColors.BlanchedAlmond;
+            paint.Style = SKPaintStyle.Stroke;
+            canvas.DrawPath(path, paint);
+            paint.Style = SKPaintStyle.Fill;
+            paint.Color = SKColors.BlueViolet;
+            canvas.DrawPath(path, paint);
 
         }
     }
