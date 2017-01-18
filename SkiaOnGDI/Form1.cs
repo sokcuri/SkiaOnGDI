@@ -202,12 +202,15 @@ namespace SkiaOnGDI
                 TextSize = 20
             })
             {
-                SKPaint textpaint = new SKPaint();
-                textpaint.IsAntialias = true;
-                textpaint.TextAlign = SKTextAlign.Left;
-                textpaint.TextSize = 150;
-                SKPath path = textpaint.GetTextPath("소쿠릿은 귀여워 '-^", 300, 300);
-                StrokePath(c, path);
+                
+                using (var textpaint = new SKPaint())
+                {
+                    textpaint.IsAntialias = true;
+                    textpaint.TextAlign = SKTextAlign.Left;
+                    textpaint.TextSize = 150;
+                    using (SKPath path = textpaint.GetTextPath("소쿠릿은 귀여워 '-^", 300, 300))
+                        StrokePath(c, path);
+                }
                 Console.WriteLine(counter.FPS);
                 c.DrawText($"FPS: {counter.FPS}",
                     (int)(Width - 10),
@@ -224,16 +227,17 @@ namespace SkiaOnGDI
         }
         private void StrokePath(SKCanvas canvas, SKPath path)
         {
-            SKPaint paint = new SKPaint();
-            paint.IsAntialias = true;
-            paint.StrokeWidth = 15;
-            paint.Color = SKColors.BlanchedAlmond;
-            paint.Style = SKPaintStyle.Stroke;
-            canvas.DrawPath(path, paint);
-            paint.Style = SKPaintStyle.Fill;
-            paint.Color = SKColors.BlueViolet;
-            canvas.DrawPath(path, paint);
-
+            using (SKPaint paint = new SKPaint())
+            {
+                paint.IsAntialias = true;
+                paint.StrokeWidth = 15;
+                paint.Color = SKColors.BlanchedAlmond;
+                paint.Style = SKPaintStyle.Stroke;
+                canvas.DrawPath(path, paint);
+                paint.Style = SKPaintStyle.Fill;
+                paint.Color = SKColors.BlueViolet;
+                canvas.DrawPath(path, paint);
+            }
         }
     }
 }
