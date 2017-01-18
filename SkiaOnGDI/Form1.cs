@@ -2,6 +2,7 @@
 using SkiaSharp.Views.Desktop;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
@@ -12,7 +13,7 @@ using System.Windows.Forms;
 
 namespace SkiaOnGDI
 {
-    public partial class Form1 : Form
+    public unsafe partial class Form1 : Form
     {
         FPSCounter counter;
         SKBitmap buffer;
@@ -42,8 +43,10 @@ namespace SkiaOnGDI
 
             Task.Factory.StartNew(() =>
             {
-                buffer = new SKBitmap(screen.WorkingArea.Width, screen.WorkingArea.Height);
+                buffer = new SKBitmap(screen.WorkingArea.Width, screen.WorkingArea.Height, SKColorType.Bgra8888, SKAlphaType.Opaque);
                 bufferContext = new SKCanvas(buffer);
+
+                //bufferContext.RotateDegrees(1f);
 
                 CreateBalls();
 
@@ -95,35 +98,34 @@ namespace SkiaOnGDI
 
         IntPtr hBitmap = IntPtr.Zero;
         IntPtr scan0 = IntPtr.Zero;
-        
+
         public void UpdateFormDisplay()
         {
             IntPtr screenDc = Win32.GetDC(IntPtr.Zero);
             IntPtr memDc = Win32.CreateCompatibleDC(screenDc);
 
             IntPtr oldBitmap = IntPtr.Zero;
-            
+
             if (hBitmap == IntPtr.Zero)
             {
-                var bih = new Win32.BITMAPINFOHEADER();
-                bih.biSize = (uint)Marshal.SizeOf<Win32.BITMAPINFOHEADER>();
-                bih.biWidth = buffer.Width;
-                bih.biHeight = buffer.Height;
-                bih.biPlanes = 1;
-                bih.biBitCount = 32;
-                bih.biCompression = Win32.BitmapCompressionMode.BI_RGB;
-                bih.biSizeImage = 0;
-                bih.biXPelsPerMeter = 0;
-                bih.biYPelsPerMeter = 0;
-                bih.biClrUsed = 0;
-                bih.biClrImportant = 0;
-                
-                var bi = new Win32.BITMAPINFO();
-                bi.bmiHeader = bih;
-                hBitmap = Win32.CreateDIBSection(screenDc, ref bi, 0, out scan0, IntPtr.Zero, 0);
-            }
-            buffer.CopyPixelsTo(scan0, buffer.ByteCount);
+                var bmh = new Win32.BITMAPV5HEADER();
+                bmh.bV5Size = (uint)Marshal.SizeOf<Win32.BITMAPV5HEADER>();
+                bmh.bV5Width = buffer.Width;
+                bmh.bV5Height = -buffer.Height;
+                bmh.bV5Planes = 1;
+                bmh.bV5BitCount = 32;
+                bmh.bV5Compression = Win32.BitmapCompressionMode.BI_RGB;
+                bmh.bV5AlphaMask = 0xFF000000;
+                bmh.bV5RedMask = 0x00FF0000;
+                bmh.bV5GreenMask = 0x0000FF00;
+                bmh.bV5BlueMask = 0x000000FF;
 
+                hBitmap = Win32.CreateDIBSection(screenDc, ref bmh, 0, out scan0, IntPtr.Zero, 0);
+            }
+            int stride = 4 * ((buffer.Width * buffer.BytesPerPixel + 3) / 4);
+            int totBytes = stride * buffer.Height;
+            
+            buffer.CopyPixelsTo(scan0, buffer.ByteCount);
             oldBitmap = Win32.SelectObject(memDc, hBitmap);
 
             Size size = new Size(buffer.Width, buffer.Height);
@@ -137,7 +139,7 @@ namespace SkiaOnGDI
             blend.AlphaFormat = Win32.AC_SRC_ALPHA;
 
             Win32.UpdateLayeredWindow(mHandle, screenDc, ref topPos, ref size, memDc, ref pointSource, 0, ref blend, Win32.ULW_ALPHA);
-            
+
             Win32.ReleaseDC(IntPtr.Zero, screenDc);
             if (hBitmap != IntPtr.Zero)
             {
@@ -180,7 +182,7 @@ namespace SkiaOnGDI
 
                 ball.X = Math.Min(Math.Max(ball.X, ball.Radius), Width - ball.Radius);
                 ball.Y = Math.Min(Math.Max(ball.Y, ball.Radius), Height - ball.Radius);
-                
+
                 ball.Opacity = Math.Max(ball.Opacity, 0);
                 ball.Paint.Color = ball.Paint.Color.WithAlpha((byte)(255 * ball.Opacity));
 
@@ -211,6 +213,8 @@ namespace SkiaOnGDI
                     (int)(Height - 10 - paint.TextSize * 1.5),
                     paint);
             }
+            //c.RotateDegrees(0.5f, buffer.Width / 2, buffer.Height / 2);
+
         }
     }
 }

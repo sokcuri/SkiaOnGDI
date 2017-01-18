@@ -65,6 +65,52 @@ namespace SkiaOnGDI
             }
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        public struct BITMAPV5HEADER
+        {
+            public uint bV5Size;
+            public int bV5Width;
+            public int bV5Height;
+            public ushort bV5Planes;
+            public ushort bV5BitCount;
+            public BitmapCompressionMode bV5Compression;
+            public uint bV5SizeImage;
+            public int bV5XPelsPerMeter;
+            public int bV5YPelsPerMeter;
+            public uint bV5ClrUsed;
+            public uint bV5ClrImportant;
+            public uint bV5RedMask;
+            public uint bV5GreenMask;
+            public uint bV5BlueMask;
+            public uint bV5AlphaMask;
+            public uint bV5CSType;
+            public CIEXYZTRIPLE bV5Endpoints;
+            public uint bV5GammaRed;
+            public uint bV5GammaGreen;
+            public uint bV5GammaBlue;
+            public uint bV5Intent;
+            public uint bV5ProfileData;
+            public uint bV5ProfileSize;
+            public uint bV5Reserved;
+        }
+
+    
+        [StructLayout(LayoutKind.Sequential)]
+        public struct CIEXYZTRIPLE
+        {
+            public CIEXYZ ciexyzRed;
+            public CIEXYZ ciexyzGreen;
+            public CIEXYZ ciexyzBlue;
+        }
+        
+        [StructLayout(LayoutKind.Sequential)]
+        public struct CIEXYZ
+        {
+            public int ciexyzX;
+            public int ciexyzY;
+            public int ciexyzZ;
+        }
+        
         public enum BitmapCompressionMode : uint
         {
             BI_RGB = 0,
@@ -125,6 +171,9 @@ namespace SkiaOnGDI
 
         [DllImport("gdi32.dll")]
         public static extern IntPtr CreateDIBSection(IntPtr hdc, [In] ref BITMAPINFO pbmi, uint pila, out IntPtr ppvBits, IntPtr hSection, uint dwOffset);
+
+        [DllImport("gdi32.dll")]
+        public static extern IntPtr CreateDIBSection(IntPtr hdc, [In] ref BITMAPV5HEADER pbmi, uint pila, out IntPtr ppvBits, IntPtr hSection, uint dwOffset);
 
         [DllImport("user32.dll", ExactSpelling = true, SetLastError = true)]
         public static extern bool UpdateLayeredWindow(IntPtr hwnd, IntPtr hdcDst, ref Point pptDst, ref Size psize, IntPtr hdcSrc, ref Point pprSrc, Int32 crKey, ref BLENDFUNCTION pblend, Int32 dwFlags);
